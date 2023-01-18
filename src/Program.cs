@@ -23,16 +23,17 @@ namespace DynamicDnsMonitor
                     configBuilder.Sources.Clear();
                     configBuilder.AddEnvironmentVariables();
 
+                    string configFilenameMachineName;
                     if (args.Length >= 1)
                     {
-                        configBuilder.AddJsonFile(args[0], false);
+                        configFilenameMachineName = args[0];
                     }
                     else
                     {
-                        var configFilenameMachineName = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, $"appSettingFile.{System.Environment.MachineName}.json");
-                        Console.WriteLine($"Using configFilename={configFilenameMachineName}");
-                        configBuilder.AddJsonFile(configFilenameMachineName, false);
+                        configFilenameMachineName = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, $"appSettingFile.{System.Environment.MachineName}.json");
                     }
+                    Console.WriteLine($"Using configFilename={configFilenameMachineName}");
+                    configBuilder.AddJsonFile(configFilenameMachineName, false);
 
                     _configuration = configBuilder.Build();
 
