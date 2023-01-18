@@ -1,0 +1,21 @@
+dotnet publish -r linux-x64 --self-contained  --configuration Release
+
+read -p "Press enter to resume ..."
+
+docker ps -a
+docker stop dynamicdnsmonitor
+docker rm dynamicdnsmonitor
+
+docker image rm dynamicdnsmonitor
+docker image ls -a
+
+read -p "Press enter to resume ..."
+
+docker build --rm --no-cache --tag=dynamicdnsmonitor:latest .
+docker image ls -a
+
+read -p "Press enter to resume ..."
+
+docker run --restart unless-stopped -d --name dynamicdnsmonitor -v ~/DynamicDnsMonitor/config:/mnt/config -v ~/DynamicDnsMonitor/logfolder:/mnt/logfolder dynamicdnsmonitor:latest
+docker ps -a
+
