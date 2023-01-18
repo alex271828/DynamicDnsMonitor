@@ -9,6 +9,7 @@ using System.Net.Http;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Xml;
 
 namespace DynamicDnsMonitor
 {
@@ -162,7 +163,13 @@ namespace DynamicDnsMonitor
 
                         // perform the dns update
                         var dnsUpdateUrlResult = await PerformHttpGet(dnsNameToMonitor.DnsUpdateUrl.Replace("{ip}", iPAddressToCheck.ToString()), stoppingToken);
-                        if (dnsUpdateUrlResult.success)
+                        bool success = dnsUpdateUrlResult.success;
+                        // OK response, still need to check response body
+                        if (success)
+                        {
+                            success = ParseNamecheapUpdateDnsResponse(iPAddressToCheck, dnsUpdateUrlResult.body);
+                        }
+                        if (success)
                         {
                             _logger.Log($"Updated DNS entry for {dnsNameToMonitor.DnsFullName} host. Server status: {dnsUpdateUrlResult.statusCode} response: {dnsUpdateUrlResult.body}");
                             dnsNameToMonitor.WhenToCheckIPAddress = DateTime.UtcNow.AddSeconds(Math.Max(_dnsRefreshInterval, ttl));
@@ -235,6 +242,47 @@ namespace DynamicDnsMonitor
             catch (Exception ex)
             {
                 return new(false, HttpStatusCode.InternalServerError, $"Failed to get {url}. Exception={ex.ToString()}");
+            }
+        }
+
+        bool ParseNamecheapUpdateDnsResponse(IPAddress currentIPAddress, string body)
+        {
+            try
+            {
+                XmlDocument xmlDoc = new XmlDocument();
+                using (XmlTextReader xmlTextReader = new XmlTextReader(new StringReader(body)))
+                {
+                    xmlTextReader.Namespaces = false;
+                    xmlDoc.Load(xmlTextReader);
+                }
+
+                if (xmlDoc.DocumentElement == null) throw new ArgumentNullException($"DocumentElement");
+
+                {
+                    var command = xmlDoc.DocumentElement.SelectSingleNode("/interface-response/Command")?.InnerText;
+                    if (!string.Equals("SETDNSHOST", command)) throw new ArgumentOutOfRangeException($"Command={command}");
+                }
+                {
+                    var ip = xmlDoc.DocumentElement.SelectSingleNode("/interface-response/IP")?.InnerText;
+                    if (!currentIPAddress.Equals(IPAddress.Parse(ip))) throw new ArgumentOutOfRangeException($"Invalid IP: responseIP={ip} currentIPAddress={currentIPAddress.ToString()}");
+                }
+                {
+                    var errCount = xmlDoc.DocumentElement.SelectSingleNode("/interface-response/ErrCount")?.InnerText;
+                    if (int.Parse(errCount) != 0) throw new ArgumentOutOfRangeException($"ErrCount={errCount}");
+                }
+                {
+                    var done = xmlDoc.DocumentElement.SelectSingleNode("/interface-response/Done")?.InnerText;
+                    if (!bool.Parse(done)) throw new ArgumentOutOfRangeException($"Done={done}");
+                }
+                return true;
+            }
+            catch (Exception ex)
+            {
+                var properties = new List<KeyValuePair<string, string>>();
+                properties.Add(new KeyValuePair<string, string>("currentIPAddress", currentIPAddress.ToString()));
+                properties.Add(new KeyValuePair<string, string>("body", body));
+                _logger.Log($"Failed in ParseUpdateDnsResponse()");
+                return false;
             }
         }
     }
