@@ -281,6 +281,7 @@ namespace DynamicDnsMonitor
                 var properties = new List<KeyValuePair<string, string>>();
                 properties.Add(new KeyValuePair<string, string>("currentIPAddress", currentIPAddress.ToString()));
                 properties.Add(new KeyValuePair<string, string>("body", body));
+                properties.Add(new KeyValuePair<string, string>("ex", ex.ToString()));
                 _logger.Log($"Failed in ParseUpdateDnsResponse()");
                 return false;
             }
