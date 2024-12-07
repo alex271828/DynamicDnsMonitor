@@ -16,7 +16,7 @@ docker image ls -a
 
 read -p "Press enter to resume ..."
 
-docker run --restart unless-stopped -d --name dynamicdnsmonitor -v ~/DynamicDnsMonitor/config:/mnt/config -v ~/DynamicDnsMonitor/logfolder:/mnt/logfolder dynamicdnsmonitor:latest
+docker run --restart unless-stopped -d --name dynamicdnsmonitor -v $(pwd)/config:/mnt/config -v $(pwd)/logfolder:/mnt/logfolder dynamicdnsmonitor:latest
 docker ps -a
 
 read -p "Remove dangling images? ..."
